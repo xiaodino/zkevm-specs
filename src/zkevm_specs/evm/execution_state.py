@@ -19,16 +19,12 @@ class ExecutionState(IntEnum):
     BeginTx = auto()
     EndTx = auto()
     EndBlock = auto()
-    CopyToMemory = auto()
-    CopyToLog = auto()
-    CopyCodeToMemory = auto()
 
     # Opcode's successful cases
     STOP = auto()
     ADD = auto()  # ADD, SUB
     MUL = auto()  # MUL, DIV, MOD
-    SDIV = auto()
-    SMOD = auto()
+    SDIV_SMOD = auto()
     ADDMOD = auto()
     MULMOD = auto()
     EXP = auto()
@@ -39,8 +35,7 @@ class ExecutionState(IntEnum):
     BITWISE = auto()  # AND, OR, XOR
     NOT = auto()
     BYTE = auto()
-    SHL = auto()
-    SHR = auto()
+    SHL_SHR = auto()
     SAR = auto()
     SHA3 = auto()
     ADDRESS = auto()
@@ -148,10 +143,8 @@ class ExecutionState(IntEnum):
             ]
         elif self == ExecutionState.MUL:
             return [Opcode.MUL, Opcode.DIV, Opcode.MOD]
-        elif self == ExecutionState.SDIV:
-            return [Opcode.SDIV]
-        elif self == ExecutionState.SMOD:
-            return [Opcode.SMOD]
+        elif self == ExecutionState.SDIV_SMOD:
+            return [Opcode.SDIV, Opcode.SMOD]
         elif self == ExecutionState.ADDMOD:
             return [Opcode.ADDMOD]
         elif self == ExecutionState.MULMOD:
@@ -183,10 +176,8 @@ class ExecutionState(IntEnum):
             return [Opcode.NOT]
         elif self == ExecutionState.BYTE:
             return [Opcode.BYTE]
-        elif self == ExecutionState.SHL:
-            return [Opcode.SHL]
-        elif self == ExecutionState.SHR:
-            return [Opcode.SHR]
+        elif self == ExecutionState.SHL_SHR:
+            return [Opcode.SHL, Opcode.SHR]
         elif self == ExecutionState.SAR:
             return [Opcode.SAR]
         elif self == ExecutionState.SHA3:

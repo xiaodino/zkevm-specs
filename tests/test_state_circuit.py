@@ -25,8 +25,9 @@ def verify(
     ok = True
     for (idx, row) in enumerate(rows):
         row_prev = rows[(idx - 1) % len(rows)]
+        row_next = rows[(idx + 1) % len(rows)]
         try:
-            check_state_row(row, row_prev, tables, randomness)
+            check_state_row(row, row_prev, row_next, tables, randomness)
         except AssertionError as e:
             if success:
                 traceback.print_exc()
@@ -72,23 +73,39 @@ def test_state_ok():
 
         AccountDestructedOp(rw_counter=20, rw=RW.Read, addr=0x12345678, value=FQ(1)),
         AccountDestructedOp(rw_counter=21, rw=RW.Read, addr=0x12345678, value=FQ(1)),
-        TxLogOp(rw_counter=22, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Address, index=0, value=FQ(124)),
-        TxLogOp(rw_counter=23, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Topic, index=0, value=FQ(10)),
-        TxLogOp(rw_counter=24, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Topic, index=1,  value=FQ(5)),
-        TxLogOp(rw_counter=25, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Topic, index=2,  value=FQ(200)),
-        TxLogOp(rw_counter=26, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Topic, index=3,  value=FQ(278)),
-        TxLogOp(rw_counter=27, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Data,  index=0,  value=FQ(10)),
-        TxLogOp(rw_counter=28, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Data,  index=1,  value=FQ(255)),
-        TxLogOp(rw_counter=29, rw=RW.Write, tx_id=1, log_id=1, field_tag=TxLogFieldTag.Address, index=0,  value=FQ(255)),
-        TxLogOp(rw_counter=30, rw=RW.Write, tx_id=1, log_id=1, field_tag=TxLogFieldTag.Data, index=0,  value=FQ(88)),
-        TxLogOp(rw_counter=31, rw=RW.Write, tx_id=2, log_id=0, field_tag=TxLogFieldTag.Address, index=0,  value=FQ(210)),
-        TxLogOp(rw_counter=32, rw=RW.Write, tx_id=2, log_id=0, field_tag=TxLogFieldTag.Topic, index=0,  value=FQ(255)),
-        TxLogOp(rw_counter=33, rw=RW.Write, tx_id=2, log_id=0, field_tag=TxLogFieldTag.Data, index=0,  value=FQ(10)),
+        TxLogOp(rw_counter=22, rw=RW.Write, tx_id=1, log_id=1, field_tag=TxLogFieldTag.Address, index=0, value=FQ(124)),
+        TxLogOp(rw_counter=23, rw=RW.Write, tx_id=1, log_id=1, field_tag=TxLogFieldTag.Topic, index=0, value=FQ(10)),
+        TxLogOp(rw_counter=24, rw=RW.Write, tx_id=1, log_id=1, field_tag=TxLogFieldTag.Topic, index=1,  value=FQ(5)),
+        TxLogOp(rw_counter=25, rw=RW.Write, tx_id=1, log_id=1, field_tag=TxLogFieldTag.Topic, index=2,  value=FQ(200)),
+        TxLogOp(rw_counter=26, rw=RW.Write, tx_id=1, log_id=1, field_tag=TxLogFieldTag.Topic, index=3,  value=FQ(278)),
+        TxLogOp(rw_counter=27, rw=RW.Write, tx_id=1, log_id=1, field_tag=TxLogFieldTag.Data,  index=0,  value=FQ(10)),
+        TxLogOp(rw_counter=28, rw=RW.Write, tx_id=1, log_id=1, field_tag=TxLogFieldTag.Data,  index=1,  value=FQ(255)),
+        TxLogOp(rw_counter=29, rw=RW.Write, tx_id=1, log_id=2, field_tag=TxLogFieldTag.Address, index=0,  value=FQ(255)),
+        TxLogOp(rw_counter=30, rw=RW.Write, tx_id=1, log_id=2, field_tag=TxLogFieldTag.Data, index=0,  value=FQ(88)),
+        TxLogOp(rw_counter=31, rw=RW.Write, tx_id=2, log_id=1, field_tag=TxLogFieldTag.Address, index=0,  value=FQ(210)),
+        TxLogOp(rw_counter=32, rw=RW.Write, tx_id=2, log_id=1, field_tag=TxLogFieldTag.Topic, index=0,  value=FQ(255)),
+        TxLogOp(rw_counter=33, rw=RW.Write, tx_id=2, log_id=1, field_tag=TxLogFieldTag.Data, index=0,  value=FQ(10)),
 
         TxReceiptOp(rw_counter=34, rw=RW.Read, tx_id=1, field_tag=TxReceiptFieldTag.PostStateOrStatus, value=FQ(1)),
         TxReceiptOp(rw_counter=35, rw=RW.Read, tx_id=1, field_tag=TxReceiptFieldTag.CumulativeGasUsed, value=FQ(200)),
         TxReceiptOp(rw_counter=36, rw=RW.Read, tx_id=2, field_tag=TxReceiptFieldTag.PostStateOrStatus, value=FQ(1)),
         TxReceiptOp(rw_counter=37, rw=RW.Read, tx_id=2, field_tag=TxReceiptFieldTag.CumulativeGasUsed, value=FQ(500)),
+    ]
+    # fmt: on
+    tables = Tables(mpt_table_from_ops(ops, randomness))
+    verify(ops, tables, randomness)
+
+
+def test_mpt_updates_ok():
+    # fmt: off
+    ops = [
+        StartOp(),
+
+        StorageOp(rw_counter=7, rw=RW.Read,  tx_id=1, addr=0x12345678, key=0x1516, value=rlc(789), committed_value=rlc(789)),
+        StorageOp(rw_counter=8, rw=RW.Write, tx_id=1, addr=0x12345678, key=0x4959, value=rlc(38491), committed_value=rlc(98765)),
+
+        AccountOp(rw_counter=12, rw=RW.Write, addr=0x12345678, field_tag=AccountFieldTag.Nonce, value=FQ(1), committed_value=FQ(0)),
+        AccountOp(rw_counter=13, rw=RW.Read,  addr=0x12345678, field_tag=AccountFieldTag.Balance, value=FQ(3), committed_value=FQ(0)),
     ]
     # fmt: on
     tables = Tables(mpt_table_from_ops(ops, randomness))
@@ -291,75 +308,12 @@ def test_stack_bad_stack_ptr_inc():
 
 def test_tx_log_bad():
     # fmt: off
-    # topic index is not increasing
+    # tx_id change must be increasing
     ops = [
         StartOp(),
-        TxLogOp(rw_counter=1, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Address, index=0, value=FQ(124)),
-        TxLogOp(rw_counter=2, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Topic, index=0, value=FQ(10)),
-        TxLogOp(rw_counter=3, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Topic, index=0, value=FQ(5)),
-    ]
-    # fmt: on
-    tables = Tables(mpt_table_from_ops(ops, randomness))
-    verify(ops, tables, randomness, success=False)
-
-    # fmt: off
-    # topic index out of range >= 4
-    ops = [
-        StartOp(),
-        TxLogOp(rw_counter=1, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Address, index=0, value=FQ(124)),
-        TxLogOp(rw_counter=2, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Topic, index=0, value=FQ(10)),
-        TxLogOp(rw_counter=3, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Topic, index=1, value=FQ(5)),
-        TxLogOp(rw_counter=4, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Topic, index=2, value=FQ(5)),
-        TxLogOp(rw_counter=5, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Topic, index=3, value=FQ(5)),
-        TxLogOp(rw_counter=6, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Topic, index=4, value=FQ(5)),
-    ]
-    # fmt: on
-    tables = Tables(mpt_table_from_ops(ops, randomness))
-    verify(ops, tables, randomness, success=False)
-
-    # fmt: off
-    # Data index is not increasing
-    ops = [
-        StartOp(),
-        TxLogOp(rw_counter=1, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Address, index=0, value=FQ(124)),
-        TxLogOp(rw_counter=2, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Data, index=0, value=FQ(10)),
-        TxLogOp(rw_counter=3, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Data, index=0, value=FQ(255)),
-    ]
-    # fmt: on
-    tables = Tables(mpt_table_from_ops(ops, randomness))
-    verify(ops, tables, randomness, success=False)
-
-    # fmt: off
-    # log id is decreasing
-    ops = [
-        StartOp(),
-        TxLogOp(rw_counter=1, rw=RW.Write, tx_id=1, log_id=1, field_tag=TxLogFieldTag.Address, index=0, value=FQ(124)),
-        TxLogOp(rw_counter=2, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Data, index=0, value=FQ(10)),
-        TxLogOp(rw_counter=3, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Data, index=0, value=FQ(255)),
-    ]
-    # fmt: on
-    tables = Tables(mpt_table_from_ops(ops, randomness))
-    verify(ops, tables, randomness, success=False)
-
-    # fmt: off
-    # TxLogFieldTag is decreasing
-    ops = [
-        StartOp(),
-        TxLogOp(rw_counter=2, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Data, index=0, value=FQ(10)),
-        TxLogOp(rw_counter=1, rw=RW.Write, tx_id=1, log_id=1, field_tag=TxLogFieldTag.Address, index=0, value=FQ(124)),
-        TxLogOp(rw_counter=3, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Data, index=0, value=FQ(255)),
-    ]
-    # fmt: on
-    tables = Tables(mpt_table_from_ops(ops, randomness))
-    verify(ops, tables, randomness, success=False)
-
-    # fmt: off
-    # when tx_id change, log_id is not reset
-    ops = [
-        StartOp(),
-        TxLogOp(rw_counter=2, rw=RW.Write, tx_id=1, log_id=0, field_tag=TxLogFieldTag.Data, index=0, value=FQ(10)),
-        TxLogOp(rw_counter=1, rw=RW.Write, tx_id=1, log_id=1, field_tag=TxLogFieldTag.Address, index=0, value=FQ(124)),
-        TxLogOp(rw_counter=3, rw=RW.Write, tx_id=2, log_id=1, field_tag=TxLogFieldTag.Data, index=0, value=FQ(255)),
+        TxLogOp(rw_counter=2, rw=RW.Write, tx_id=2, log_id=1, field_tag=TxLogFieldTag.Data, index=0, value=FQ(10)),
+        TxLogOp(rw_counter=1, rw=RW.Write, tx_id=2, log_id=2, field_tag=TxLogFieldTag.Address, index=0, value=FQ(124)),
+        TxLogOp(rw_counter=3, rw=RW.Write, tx_id=1, log_id=2, field_tag=TxLogFieldTag.Data, index=0, value=FQ(255)),
     ]
     # fmt: on
     tables = Tables(mpt_table_from_ops(ops, randomness))
@@ -423,30 +377,3 @@ def test_storage_committed_value_bad():
     # fmt: on
     tables = Tables(mpt_table_from_ops(ops, randomness))
     verify(ops, tables, randomness, success=False)
-
-
-def test_mpt_counter_bad():
-    # fmt: off
-    ops = [
-        StartOp(),
-        StorageOp(rw_counter=1, rw=RW.Write, tx_id=1, addr=0x12345678, key=0x15161718, value=rlc(789), committed_value=rlc(789)),
-        StorageOp(rw_counter=2, rw=RW.Write, tx_id=1, addr=0x12345678, key=0x15161718, value=rlc(123), committed_value=rlc(789)),
-    ]
-    # fmt: on
-    rows = assign_state_circuit(ops, r)
-    # mpt_counter goes from 1 to 3
-    rows[2] = rows[2]._replace(mpt_counter=FQ(3))
-    tables = Tables(mpt_table_from_ops(ops, randomness))
-    verify(rows, tables, randomness, success=False)
-
-    # fmt: off
-    ops = [
-        StartOp(),
-        StackOp(rw_counter=1, rw=RW.Write, call_id=1, stack_ptr=1021, value=rlc(4321)),
-    ]
-    # fmt: on
-    rows = assign_state_circuit(ops, r)
-    # mpt_counter increases when tag is not Account or Storage
-    rows[1] = rows[1]._replace(mpt_counter=FQ(1))
-    tables = Tables(mpt_table_from_ops(ops, randomness))
-    verify(rows, tables, randomness, success=False)

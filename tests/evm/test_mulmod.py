@@ -1,5 +1,6 @@
 import pytest
 
+from typing import Optional
 from zkevm_specs.evm import (
     ExecutionState,
     StepState,
@@ -9,38 +10,37 @@ from zkevm_specs.evm import (
     Bytecode,
     RWDictionary,
 )
-from zkevm_specs.util import (
-    rand_fq,
-    rand_range,
-    rand_word,
-    RLC,
-    U256,
-)
+from zkevm_specs.util import rand_fq, RLC
+
+MAXU256 = (2**256) - 1
 
 
-TESTING_DATA = (
-    (0xABCD, 8),
-    (0x1234, 7),
-    (0x8765, 17),
-    (0x4321, 0),
-    (0xFFFF, 256),
-    (0x12345, 256 + 8 + 1),
-    ((1 << 256) - 1, 63),
-    ((1 << 256) - 1, 128),
-    ((1 << 256) - 1, 129),
-)
+TESTING_DATA = [
+    (1, 1, 2),
+    (1, 1, 0),
+    (0, 2, 3),
+    (MAXU256, MAXU256, MAXU256),
+    (MAXU256, MAXU256, 1),
+    (MAXU256, 1, MAXU256),
+    (MAXU256, 2, 2),
+    (0, 0, 0),
+]
 
 
-@pytest.mark.parametrize("value, shift", TESTING_DATA)
-def test_shr(value: U256, shift: int):
-    result = value >> shift if shift <= 255 else 0
-
+@pytest.mark.parametrize("a, b, n", TESTING_DATA)
+def test_mulmod(a: int, b: int, n: int):
     randomness = rand_fq()
-    value = RLC(value, randomness)
-    shift = RLC(shift, randomness)
-    result = RLC(result, randomness)
 
-    bytecode = Bytecode().push32(value).push32(shift).shr().stop()
+    if n == 0:
+        r = RLC(0, randomness)
+    else:
+        r = RLC((a * b) % n, randomness)
+
+    a = RLC(a, randomness)
+    b = RLC(b, randomness)
+    n = RLC(n, randomness)
+
+    bytecode = Bytecode().mulmod(a, b, n).stop()
     bytecode_hash = RLC(bytecode.hash(), randomness)
 
     tables = Tables(
@@ -49,9 +49,10 @@ def test_shr(value: U256, shift: int):
         bytecode_table=set(bytecode.table_assignments(randomness)),
         rw_table=set(
             RWDictionary(9)
-            .stack_read(1, 1022, value)
-            .stack_read(1, 1023, shift)
-            .stack_write(1, 1023, result)
+            .stack_read(1, 1021, a)
+            .stack_read(1, 1022, b)
+            .stack_read(1, 1023, n)
+            .stack_write(1, 1023, r)
             .rws
         ),
     )
@@ -61,24 +62,24 @@ def test_shr(value: U256, shift: int):
         tables=tables,
         steps=[
             StepState(
-                execution_state=ExecutionState.SHR,
+                execution_state=ExecutionState.MULMOD,
                 rw_counter=9,
                 call_id=1,
                 is_root=True,
                 is_create=False,
                 code_hash=bytecode_hash,
-                program_counter=66,
-                stack_pointer=1022,
-                gas_left=3,
+                program_counter=99,
+                stack_pointer=1021,
+                gas_left=8,
             ),
             StepState(
                 execution_state=ExecutionState.STOP,
-                rw_counter=11,
+                rw_counter=13,
                 call_id=1,
                 is_root=True,
                 is_create=False,
                 code_hash=bytecode_hash,
-                program_counter=67,
+                program_counter=100,
                 stack_pointer=1023,
                 gas_left=0,
             ),
